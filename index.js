@@ -10,7 +10,7 @@ app.post('/create-payment-intent', async (req, res) => {
   try {
     const { amount, currency } = req.body; // amount in cents
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
+      amount: Math.round(req.body.amount * 100),
       currency: currency || 'usd',
       payment_method_types: ['card'],
     });
