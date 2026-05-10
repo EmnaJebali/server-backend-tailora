@@ -36,8 +36,8 @@ app.post('/create-checkout-session', async (req, res) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: 'https://tailora.app/success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://tailora.app/cancel',
+      success_url: 'https://server-backend-tailora.onrender.com/success',
+      cancel_url: 'https://server-backend-tailora.onrender.com/cancel',
     });
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
