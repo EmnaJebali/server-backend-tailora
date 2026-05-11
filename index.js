@@ -56,3 +56,37 @@ app.get('/cancel', (req, res) => {
 app.listen(3000, () => console.log('Server running'));
       
  
+const fetch = require('node-fetch');
+const FormData = require('form-data');
+
+app.post('/remove-background', async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+
+    const formData = new FormData();
+    formData.append('image_url', imageUrl);
+    formData.append('size', 'auto');
+
+    const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': process.env.REMOVE_BG_API_KEY,
+        ...formData.getHeaders(),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return res.status(500).json({ error: error.errors?.[0]?.title || 'Failed' });
+    }
+
+    // Convert image to base64 and return
+    const buffer = await response.buffer();
+    const base64 = buffer.toString('base64');
+    res.json({ image: 'data:image/png;base64,' + base64 });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
