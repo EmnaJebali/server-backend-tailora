@@ -59,15 +59,17 @@ app.listen(3000, () => console.log('Server running'));
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 
+  
 app.post('/remove-background', async (req, res) => {
   try {
     const { imageUrl } = req.body;
 
+    // Step 1: Remove background
     const formData = new FormData();
     formData.append('image_url', imageUrl);
     formData.append('size', 'auto');
 
-    const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+    const removeRes = await fetch('https://api.remove.bg/v1.0/removebg', {
       method: 'POST',
       headers: {
         'X-Api-Key': process.env.REMOVE_BG_API_KEY,
@@ -76,15 +78,36 @@ app.post('/remove-background', async (req, res) => {
       body: formData,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
+    if (!removeRes.ok) {
+      const error = await removeRes.json();
       return res.status(500).json({ error: error.errors?.[0]?.title || 'Failed' });
     }
 
-    // Convert image to base64 and return
-    const buffer = await response.buffer();
-    const base64 = buffer.toString('base64');
-    res.json({ image: 'data:image/png;base64,' + base64 });
+    // Step 2: Upload to Supabase
+    const buffer = await removeRes.buffer();
+    const fileName = 'cleaned_' + Date.now() + '.png';
+
+    const uploadRes = await fetch(
+      process.env.SUPABASE_URL + '/storage/v1/object/' + process.env.SUPABASE_BUCKET + '/' + fileName,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY,
+          'Content-Type': 'image/png',
+          'x-upsert': 'true',
+        },
+        body: buffer,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json();
+      return res.status(500).json({ error: 'Supabase upload failed: ' + JSON.stringify(err) });
+    }
+
+    // Step 3: Return public URL
+    const publicUrl = process.env.SUPABASE_URL + '/storage/v1/object/public/' + process.env.SUPABASE_BUCKET + '/' + fileName;
+    res.json({ imageUrl: publicUrl });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
